@@ -27,6 +27,7 @@ import io.nekohasekai.libbox.PlatformInterface
 import io.nekohasekai.libbox.SystemProxyStatus
 import io.nekohasekai.sfa.Application
 import io.nekohasekai.sfa.R
+import io.nekohasekai.sfa.bridge.BridgeFlags
 import io.nekohasekai.sfa.constant.Action
 import io.nekohasekai.sfa.constant.Alert
 import io.nekohasekai.sfa.constant.Status
@@ -41,6 +42,8 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withContext
 import java.io.File
+import android.os.Handler
+import android.os.Looper
 
 class BoxService(
     private val service: Service, private val platformInterface: PlatformInterface
@@ -48,9 +51,8 @@ class BoxService(
 
     companion object {
 
-        private const val SX_PKG = "com.simplexray.an"
-        private const val SX_ACTION_START_CORE = "com.simplexray.an.ACTION_START_CORE"
-        private const val SX_ACTION_STOP_CORE  = "com.simplexray.an.ACTION_STOP_CORE"
+        private const val ACK_TIMEOUT_MS: Long = 3000
+        private const val ACK_RETRY_AT: Long   = 1200
 
         fun start() {
             val intent = runBlocking {
@@ -101,9 +103,66 @@ class BoxService(
         this.commandServer = commandServer
     }
 
-    private fun isPkgInstalled(context: Context, pkg: String): Boolean = try {
-        context.packageManager.getApplicationInfo(pkg, 0); true
+    private fun isSimpleXrayInstalled(): Boolean = try {
+        service.packageManager.getApplicationInfo("com.simplexray.an", 0); true
     } catch (_: Exception) { false }
+
+    private fun linkSimpleXray(start: Boolean) {
+        if (BridgeFlags.consumeSuppressOnce()) return
+        if (!isSimpleXrayInstalled()) return
+
+        val action    = if (start) "com.simplexray.an.ACTION_START_CORE" else "com.simplexray.an.ACTION_STOP_CORE"
+        val requestId = System.currentTimeMillis().toString()
+        val ackAction = "com.simplexray.an.ACTION_ACK"
+        val callerPkg = service.packageName
+        var handler = Handler(Looper.getMainLooper())
+        val filter = android.content.IntentFilter(ackAction)
+        var gotAck = false
+        val ackReceiver = object : android.content.BroadcastReceiver() {
+            override fun onReceive(c: Context, i: Intent) {
+                if (requestId == i.getStringExtra("request_id")) {
+                    gotAck = true
+                    try { service.unregisterReceiver(this) } catch (_: Exception) { }
+                }
+            }
+        }
+        if (Build.VERSION.SDK_INT >= 33) {
+            service.registerReceiver(ackReceiver, filter, Context.RECEIVER_EXPORTED)
+        } else {
+            @Suppress("UnspecifiedRegisterReceiverFlag")
+            service.registerReceiver(ackReceiver, filter)
+        }
+
+        val req = Intent(action).apply {
+            setPackage("com.simplexray.an")
+            putExtra("request_id", requestId)
+            putExtra("caller_pkg", callerPkg)
+        }
+        runCatching {
+            service.sendBroadcast(req, "com.simplexray.an.permission.EXTERNAL_CONTROL")
+        }
+
+        handler.postDelayed({
+            if (!gotAck) {
+                runCatching {
+                    service.sendBroadcast(req, "com.simplexray.an.permission.EXTERNAL_CONTROL")
+                }
+            }
+        }, ACK_RETRY_AT)
+
+        handler.postDelayed({
+            try { service.unregisterReceiver(ackReceiver) } catch (_: Exception) { }
+            if (!gotAck) {
+                BridgeFlags.markSuppressOnce()
+                val i = Intent().apply {
+                    setClassName("com.simplexray.an", "com.simplexray.an.integration.SxStarterActivity")
+                    addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                    putExtra("op", if (start) "start" else "stop")
+                }
+                runCatching { service.startActivity(i) }
+            }
+        }, ACK_TIMEOUT_MS)
+    }
 
     private var lastProfileName = ""
     private suspend fun startService() {
@@ -167,12 +226,7 @@ class BoxService(
                 notification.show(lastProfileName, R.string.status_started)
             }
             notification.start()
-            runCatching {
-                if (isPkgInstalled(service, SX_PKG)) {
-                    val i = Intent(SX_ACTION_START_CORE).setPackage(SX_PKG)
-                    service.sendBroadcast(i)
-                }
-            }
+            linkSimpleXray(start = true)
         } catch (e: Exception) {
             stopAndAlert(Alert.StartService, e.message)
             return
@@ -266,12 +320,7 @@ class BoxService(
                 status.value = Status.Stopped
                 service.stopSelf()
             }
-            runCatching {
-                if (isPkgInstalled(service, SX_PKG)) {
-                    val i = Intent(SX_ACTION_STOP_CORE).setPackage(SX_PKG)
-                    service.sendBroadcast(i)
-                }
-            }
+            linkSimpleXray(start = false)
         }
     }
 
