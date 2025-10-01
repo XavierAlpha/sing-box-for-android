@@ -48,6 +48,10 @@ class BoxService(
 
     companion object {
 
+        private const val SX_PKG = "com.simplexray.an"
+        private const val SX_ACTION_START_CORE = "com.simplexray.an.ACTION_START_CORE"
+        private const val SX_ACTION_STOP_CORE  = "com.simplexray.an.ACTION_STOP_CORE"
+
         fun start() {
             val intent = runBlocking {
                 withContext(Dispatchers.IO) {
@@ -96,6 +100,10 @@ class BoxService(
         commandServer.start()
         this.commandServer = commandServer
     }
+
+    private fun isPkgInstalled(context: Context, pkg: String): Boolean = try {
+        context.packageManager.getApplicationInfo(pkg, 0); true
+    } catch (_: Exception) { false }
 
     private var lastProfileName = ""
     private suspend fun startService() {
@@ -159,6 +167,12 @@ class BoxService(
                 notification.show(lastProfileName, R.string.status_started)
             }
             notification.start()
+            runCatching {
+                if (isPkgInstalled(service, SX_PKG)) {
+                    val i = Intent(SX_ACTION_START_CORE).setPackage(SX_PKG)
+                    service.sendBroadcast(i)
+                }
+            }
         } catch (e: Exception) {
             stopAndAlert(Alert.StartService, e.message)
             return
@@ -251,6 +265,12 @@ class BoxService(
             withContext(Dispatchers.Main) {
                 status.value = Status.Stopped
                 service.stopSelf()
+            }
+            runCatching {
+                if (isPkgInstalled(service, SX_PKG)) {
+                    val i = Intent(SX_ACTION_STOP_CORE).setPackage(SX_PKG)
+                    service.sendBroadcast(i)
+                }
             }
         }
     }
