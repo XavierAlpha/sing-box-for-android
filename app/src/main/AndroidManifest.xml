@@ -25,6 +25,12 @@
         android:name="android.permission.QUERY_ALL_PACKAGES"
         tools:ignore="QueryAllPackagesPermission" />
 
+    <uses-permission android:name="com.simplexray.an.permission.EXTERNAL_CONTROL" />
+
+    <permission
+        android:name="io.nekohasekai.sfa.permission.EXTERNAL_CONTROL"
+        android:protectionLevel="signature" />
+
     <application
         android:name=".Application"
         android:allowBackup="true"
@@ -177,6 +183,16 @@
             <intent-filter android:priority="999">
                 <action android:name="android.intent.action.BOOT_COMPLETED" />
                 <action android:name="android.intent.action.MY_PACKAGE_REPLACED" />
+            </intent-filter>
+        </receiver>
+
+        <receiver
+            android:name="io.nekohasekai.sfa.bridge.ExternalControlReceiver"
+            android:exported="true"
+            android:permission="io.nekohasekai.sfa.permission.EXTERNAL_CONTROL">
+            <intent-filter>
+                <action android:name="io.nekohasekai.sfa.ACTION_START" />
+                <action android:name="io.nekohasekai.sfa.ACTION_STOP" />
             </intent-filter>
         </receiver>
 
