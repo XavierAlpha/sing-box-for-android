@@ -2,6 +2,9 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools">
 
+    <queries>
+        <package android:name="com.simplexray.an" />
+    </queries>
 
     <uses-feature
         android:name="android.hardware.camera"
@@ -28,6 +31,12 @@
     <uses-permission
         android:name="android.permission.QUERY_ALL_PACKAGES"
         tools:ignore="QueryAllPackagesPermission" />
+
+    <permission
+        android:name="io.nekohasekai.sfa.permission.EXTERNAL_CONTROL"
+        android:protectionLevel="signature" />
+    <uses-permission android:name="com.simplexray.an.permission.EXTERNAL_CONTROL" />
+    <uses-permission android:name="io.nekohasekai.sfa.permission.EXTERNAL_CONTROL" />
 
     <application
         android:name=".Application"
@@ -109,6 +118,15 @@
             </intent-filter>
 
         </activity>
+
+        <activity
+            android:name="io.nekohasekai.sfa.bridge.SfaStarterActivity"
+            android:exported="true"
+            android:excludeFromRecents="true"
+            android:noHistory="true"
+            android:theme="@android:style/Theme.NoDisplay"
+            android:permission="io.nekohasekai.sfa.permission.EXTERNAL_CONTROL" />
+
         <service
             android:name=".bg.TileService"
             android:directBootAware="true"
@@ -149,6 +167,16 @@
             <intent-filter android:priority="999">
                 <action android:name="android.intent.action.BOOT_COMPLETED" />
                 <action android:name="android.intent.action.MY_PACKAGE_REPLACED" />
+            </intent-filter>
+        </receiver>
+
+        <receiver
+            android:name="io.nekohasekai.sfa.bridge.SfaStarterReceiver"
+            android:exported="true"
+            android:permission="io.nekohasekai.sfa.permission.EXTERNAL_CONTROL">
+            <intent-filter>
+                <action android:name="com.simplexray.an.CTRL_FROM_SX_START" />
+                <action android:name="com.simplexray.an.CTRL_FROM_SX_STOP" />
             </intent-filter>
         </receiver>
 
