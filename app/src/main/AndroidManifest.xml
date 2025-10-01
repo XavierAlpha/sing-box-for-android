@@ -2,6 +2,9 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools">
 
+    <queries>
+        <package android:name="com.simplexray.an" />
+    </queries>
 
     <uses-feature
         android:name="android.hardware.camera"
@@ -25,11 +28,11 @@
         android:name="android.permission.QUERY_ALL_PACKAGES"
         tools:ignore="QueryAllPackagesPermission" />
 
-    <uses-permission android:name="com.simplexray.an.permission.EXTERNAL_CONTROL" />
-
     <permission
         android:name="io.nekohasekai.sfa.permission.EXTERNAL_CONTROL"
         android:protectionLevel="signature" />
+    <uses-permission android:name="com.simplexray.an.permission.EXTERNAL_CONTROL" />
+    <uses-permission android:name="io.nekohasekai.sfa.permission.EXTERNAL_CONTROL" />
 
     <application
         android:name=".Application"
@@ -143,6 +146,14 @@
             android:name="io.nekohasekai.sfa.ui.profile.QRScanActivity"
             android:exported="false" />
 
+        <activity
+            android:name="io.nekohasekai.sfa.bridge.SfaStarterActivity"
+            android:exported="true"
+            android:excludeFromRecents="true"
+            android:noHistory="true"
+            android:theme="@android:style/Theme.NoDisplay"
+            android:permission="io.nekohasekai.sfa.permission.EXTERNAL_CONTROL" />
+
         <service
             android:name=".bg.TileService"
             android:directBootAware="true"
@@ -187,7 +198,7 @@
         </receiver>
 
         <receiver
-            android:name="io.nekohasekai.sfa.bridge.ExternalControlReceiver"
+            android:name="io.nekohasekai.sfa.bridge.SfaStarterReceiver"
             android:exported="true"
             android:permission="io.nekohasekai.sfa.permission.EXTERNAL_CONTROL">
             <intent-filter>
