@@ -3,47 +3,53 @@ package io.nekohasekai.sfa.bridge
 import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
-import io.nekohasekai.sfa.bg.BoxService
-import io.nekohasekai.sfa.bridge.BridgeFlags
+import androidx.core.content.ContextCompat
+import io.nekohasekai.sfa.Application
+import io.nekohasekai.sfa.database.Settings
+import io.nekohasekai.sfa.constant.Action
 
 class SfaStarterReceiver : BroadcastReceiver() {
 
     companion object {
-        const val ACTION_START = "io.nekohasekai.sfa.ACTION_START"
-        const val ACTION_STOP  = "io.nekohasekai.sfa.ACTION_STOP"
-        const val ACTION_ACK   = "io.nekohasekai.sfa.ACTION_ACK"
-        const val EXTRA_SHOW_UI = "show_ui"
+        const val ACT_FROM_SX_START = "com.simplexray.an.CTRL_FROM_SX_START"
+        const val ACT_FROM_SX_STOP  = "com.simplexray.an.CTRL_FROM_SX_STOP"
+
+        const val ACT_ACK_TO_SX     = "io.nekohasekai.sfa.ACK_TO_SX"
+
         const val EXTRA_REQUEST_ID = "request_id"
         const val EXTRA_CALLER_PKG = "caller_pkg"
+        const val EXTRA_CAUSE      = "cause"    // "user" | "remote" | "system"
+        const val EXTRA_SHOW_UI    = "show_ui"
     }
 
     override fun onReceive(context: Context, intent: Intent) {
-        BridgeFlags.markSuppressOnce()
-
-        when (intent.action) {
-            ACTION_STOP -> runCatching { BoxService.stop() }
-            ACTION_START -> {
-                runCatching { BoxService.start() }
-                if (intent.getBooleanExtra(EXTRA_SHOW_UI, false)) {
-                    val main = Intent().apply {
-                        setClassName(context.packageName, "io.nekohasekai.sfa.ui.MainActivity")
-                        addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP)
-                    }
-                    runCatching { context.startActivity(main) }
-                }
-            }
+        val op = when (intent.action) {
+            ACT_FROM_SX_START -> "start"
+            ACT_FROM_SX_STOP  -> "stop"
+            else -> return
         }
 
-        val reqId = intent.getStringExtra(EXTRA_REQUEST_ID)
+        if (op == "stop") {
+            Application.application.sendBroadcast(
+                Intent(io.nekohasekai.sfa.constant.Action.SERVICE_CLOSE)
+                    .setPackage(Application.application.packageName)
+                    .putExtra(EXTRA_CAUSE, "remote")
+            )
+        } else {
+            BridgeStartContext.markRemote()
+
+            val svc = Intent(Application.application, Settings.serviceClass())
+            ContextCompat.startForegroundService(Application.application, svc)
+        }
+
+        val reqId  = intent.getStringExtra(EXTRA_REQUEST_ID)
         val caller = intent.getStringExtra(EXTRA_CALLER_PKG)
         if (!reqId.isNullOrEmpty() && !caller.isNullOrEmpty()) {
-            val ack = Intent(ACTION_ACK).apply {
+            val ack = Intent(ACT_ACK_TO_SX).apply {
                 setPackage(caller)
                 putExtra(EXTRA_REQUEST_ID, reqId)
             }
-            runCatching {
-                context.sendBroadcast(ack, "com.simplexray.an.permission.EXTERNAL_CONTROL")
-            }
+            runCatching { context.sendBroadcast(ack) }
         }
     }
 }
