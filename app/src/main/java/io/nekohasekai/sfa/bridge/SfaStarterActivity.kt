@@ -16,13 +16,15 @@ class SfaStarterActivity : Activity() {
 
         val op = intent.getStringExtra(EXTRA_OP) ?: "start"
         if (op == "stop") {
+            BridgeStopContext.markRemote()
             runCatching { BoxService.stop() }
         } else {
+            BridgeStartContext.markRemote()
             runCatching { BoxService.start() }
             if (intent.getBooleanExtra(EXTRA_SHOW_UI, false)) {
                 val main = Intent().apply {
                     setClassName(packageName, "io.nekohasekai.sfa.ui.MainActivity")
-                    addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP)
+                    addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP)
                 }
                 runCatching { startActivity(main) }
             }
