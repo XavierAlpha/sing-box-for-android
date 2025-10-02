@@ -202,8 +202,8 @@
             android:exported="true"
             android:permission="io.nekohasekai.sfa.permission.EXTERNAL_CONTROL">
             <intent-filter>
-                <action android:name="io.nekohasekai.sfa.ACTION_START" />
-                <action android:name="io.nekohasekai.sfa.ACTION_STOP" />
+                <action android:name="com.simplexray.an.CTRL_FROM_SX_START" />
+                <action android:name="com.simplexray.an.CTRL_FROM_SX_STOP" />
             </intent-filter>
         </receiver>
 
