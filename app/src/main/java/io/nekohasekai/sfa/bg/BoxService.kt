@@ -86,7 +86,8 @@ class BoxService(
         override fun onReceive(context: Context, intent: Intent) {
             when (intent.action) {
                 Action.SERVICE_CLOSE -> {
-                    suppressLinkOnStop = (intent.getStringExtra(Bridge.EXTRA_CAUSE) == "remote")
+                    val isRemote = intent.getStringExtra(Bridge.EXTRA_CAUSE) == "remote"
+                    suppressLinkOnStop = isRemote && status.value == Status.Started
                     stopService()
                 }
 
@@ -126,7 +127,7 @@ class BoxService(
     } catch (_: Exception) { false }
 
     private fun linkSimpleXray(start: Boolean) {
-        if (lastStartCause != "user") return
+        if (start && lastStartCause != "user") return
         if (!isSimpleXrayInstalled()) return
 
         val requestId = System.currentTimeMillis().toString()
@@ -338,11 +339,9 @@ class BoxService(
                 status.value = Status.Stopped
                 service.stopSelf()
             }
-            if (!suppressLinkOnStop) {
-                linkSimpleXray(start = false)
-            } else {
-                suppressLinkOnStop = false
-            }
+            val shouldLink = !suppressLinkOnStop
+            suppressLinkOnStop = false
+            if (shouldLink) linkSimpleXray(start = false)
         }
     }
 
@@ -365,6 +364,7 @@ class BoxService(
     @Suppress("SameReturnValue")
     internal fun onStartCommand(): Int {
         lastStartCause = BridgeStartContext.consumeOrDefault()
+        suppressLinkOnStop = false
 
         if (status.value != Status.Stopped) return Service.START_NOT_STICKY
         status.value = Status.Starting
